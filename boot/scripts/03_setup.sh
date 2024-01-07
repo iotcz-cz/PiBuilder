@@ -29,7 +29,7 @@ run_pibuilder_prolog
 IOTSTACK=${IOTSTACK:-"$HOME/IOTstack"}
 IOTSTACK=$(realpath "$IOTSTACK")
 # defaults for git cloning operations
-IOTSTACK_URL="${IOTSTACK_URL:-"https://github.com/iotcz-cz/IOTstack.git"}"
+IOTSTACK_URL="${IOTSTACK_URL:-"https://github.com/SensorsIot/IOTstack.git"}"
 IOTSTACK_BRANCH="${IOTSTACK_BRANCH:-"master"}"
 IOTSTACKALIASES_URL="${IOTSTACKALIASES_URL:-"https://github.com/iotcz-cz/IOTstackAliases.git"}"
 IOTSTACKALIASES_BRANCH="${IOTSTACKALIASES_BRANCH:-"master"}"
