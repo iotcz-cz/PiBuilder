@@ -1,5 +1,22 @@
 # PiBuilder
 
+## Užitečný nástroj pro kompletní přípravu Raspberry Pi 
+
+PiBuilder je oním pověstným švýcarským nožíkem, který po čistém vypálení image Raspbianu provede
+automaticky kompletně zbylé kroky - instalaci IOTstack a všech jeho závislostí, instalaci IOTstackBackupu
+a také české verze IOTstackAliasů. Po skončení stačí spustit příkaz `iotstack_restore` s názvem souboru
+ze zálohy (například na DropBoxu) a on si stáhne danou zálohu a vše sám rozbalí a připraví. Po zadání
+`UP` je vše spuštěno a běží stejně, jako v okamžik provádění zálohy. 
+
+Jedná se o lehce upravený projekt pro české potřeby IOTcz.cz - například přidané CZ NTP servery pro synchronizaci 
+času, dále přidané automatické zálohování IOTstacku do cron, nastavení skriptů pro běh větráků na krabičce ARGON ONE V2, atd.
+
+Kompletní český návod naleznete zde:
+https://www.iotcz.cz/2022/01/09/navody/iotstack-pibuilder-aneb-kompletni-priprava/
+
+Chcete-li, můžete použít původní v angličtině:
+
+
 <a name="introduction"></a>
 ## Introduction
 

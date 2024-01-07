@@ -44,10 +44,13 @@ PATH=«HOMEDIR»/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/s
 
 # example commands (these are all "live" - you should delete them)
 #min hour mday mon  wday command
-*/10 *    *    *    *    echo "hh:00 hh:10 hh:20 hh:30 hh:40 hh:50" >/dev/null
-10   */3  *    *    *    echo "00:10 03:10 06:10 09:10 12:10 ..."   >/dev/null
-15   9-17 *    *    *    echo "09:15 10:15  ...  16:15 17:15"       >/dev/null
-20   3    */7  *    *    echo "03:20 mod(julianDayOfYear,7)=0"      >/dev/null
-59   23   30   6    *    echo "23:59 yyyy-06-30"                    >/dev/null
-0    7    *    *    1    echo "Rise and shine! It's 7am Monday!"    >/dev/null
-@reboot                  echo "cron daemon starts after reboot"     >/dev/null
+#*/10 *    *    *    *    echo "hh:00 hh:10 hh:20 hh:30 hh:40 hh:50" >/dev/null
+#10   */3  *    *    *    echo "00:10 03:10 06:10 09:10 12:10 ..."   >/dev/null
+#15   9-17 *    *    *    echo "09:15 10:15  ...  16:15 17:15"       >/dev/null
+#20   3    */7  *    *    echo "03:20 mod(julianDayOfYear,7)=0"      >/dev/null
+#59   23   30   6    *    echo "23:59 yyyy-06-30"                    >/dev/null
+#0    7    *    *    1    echo "Rise and shine! It's 7am Monday!"    >/dev/null
+#@reboot                  echo "cron daemon starts after reboot"     >/dev/null
+
+# backup Docker containers and configurations once per day at 23:00
+00	23	*	*	*	iotstack_backup >>./Logs/iotstack_backup.log 2>&1

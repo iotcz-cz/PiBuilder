@@ -1,6 +1,14 @@
 # this file is "sourced" in all build scripts. In the release version,
 # all variables are commented-out and shown with their default values.
 
+# - country-code for WiFi
+#   normally set in Raspberry Pi Imager - will override if made active
+LOCALCC="CZ"
+
+# - local time-zone
+#   normally set in Raspberry Pi Imager - will override if made active
+LOCALTZ="Europe/Prague"
+
 # - skip full upgrade in the 01 script.
 #SKIP_FULL_UPGRADE=false
 

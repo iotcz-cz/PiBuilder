@@ -165,6 +165,18 @@ if is_raspberry_pi ; then
    echo "Setting boot behaviour to console (no GUI)"
    sudo raspi-config nonint do_boot_behaviour B1
 
+   # set/override WiFi country code as an option
+   if [ -n "$LOCALCC" ] ; then
+      echo "Setting WiFi country code to $LOCALCC"
+      sudo raspi-config nonint do_wifi_country "$LOCALCC"
+   fi
+
+   # set timezone if provided and what is in effect are different
+   if [ -n "$LOCALTZ" -a "$LOCALTZ" != "$(cat /etc/timezone)" ] ; then 
+      echo "Setting time-zone to $LOCALTZ"
+      sudo raspi-config nonint do_change_timezone "$LOCALTZ"
+   fi
+
    # has the user given permission for an EEPROM upgrade?
    if [ "$SKIP_EEPROM_UPGRADE" != "true" ] ; then
 
@@ -192,6 +204,8 @@ else
    echo "The following PiBuilder options have been ignored:"
    echo "   ENABLE_PI_CAMERA"
    [ "$PREFER_64BIT_KERNEL" = "true" ] && echo "   PREFER_64BIT_KERNEL"
+   [ -n "$LOCALCC" ] && echo "   LOCALCC"
+   [ -n "$LOCALTZ" ] && echo "   LOCALTZ"
    [ "$SKIP_EEPROM_UPGRADE" = "false" ] && echo "   SKIP_EEPROM_UPGRADE"
 
    # run the script epilog if it exists

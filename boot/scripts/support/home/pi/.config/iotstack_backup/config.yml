@@ -1,13 +1,24 @@
 backup:
+  method: "RCLONE"
+  prefix: "dropbox:IOTstack/backups"
+  retain: 45
+
+restore:
+  method: "RCLONE"
+  prefix: "dropbox:IOTstack/backups"
+
+# --- settings above this line are active. Those below are examples ---
+
+backup-rsync:
   method: "RSYNC"
   prefix: "user@host:path/to/prefix/folder"
   retain: 8
 
-restore:
+restore-rsync:
   method: "RSYNC"
   prefix: "user@host:path/to/prefix/folder"
 
-# --- settings above this line are active. Those below are examples ---
+# ---------------------------------------------------------------------
 
 backup-rclone:
   method: "RCLONE"

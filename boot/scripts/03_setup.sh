@@ -29,9 +29,9 @@ run_pibuilder_prolog
 IOTSTACK=${IOTSTACK:-"$HOME/IOTstack"}
 IOTSTACK=$(realpath "$IOTSTACK")
 # defaults for git cloning operations
-IOTSTACK_URL="${IOTSTACK_URL:-"https://github.com/SensorsIot/IOTstack.git"}"
+IOTSTACK_URL="${IOTSTACK_URL:-"https://github.com/iotcz-cz/IOTstack.git"}"
 IOTSTACK_BRANCH="${IOTSTACK_BRANCH:-"master"}"
-IOTSTACKALIASES_URL="${IOTSTACKALIASES_URL:-"https://github.com/Paraphraser/IOTstackAliases.git"}"
+IOTSTACKALIASES_URL="${IOTSTACKALIASES_URL:-"https://github.com/iotcz-cz/IOTstackAliases.git"}"
 IOTSTACKALIASES_BRANCH="${IOTSTACKALIASES_BRANCH:-"master"}"
 IOTSTACKBACKUP_URL="${IOTSTACKBACKUP_URL:-"https://github.com/Paraphraser/IOTstackBackup.git"}"
 IOTSTACKBACKUP_BRANCH="${IOTSTACKBACKUP_BRANCH:-"master"}"
@@ -103,6 +103,7 @@ jq
 libffi-dev
 libnss3-tools
 libreadline-dev
+mc
 mosquitto-clients
 netcat-openbsd
 nmap
