@@ -1,5 +1,29 @@
 # PiBuilder Change Summary
 
+* 2024-02-19
+
+	- Bump default version of docker-compose installed via script to v2.24.6.
+
+* 2024-02-04
+
+	- Bump default version of docker-compose installed via script to v2.24.5. This was released 31/Jan to fix a Windows problem so I decided to skip it as not relevant to PiBuilder builds. However, v2.24.5 is now the default with `apt upgrade` so PiBuilder may as well follow suit.
+
+* 2024-01-30
+
+	- Bump default version of docker-compose installed via script to v2.24.4 (v2.24.3 skipped because it was only relevant to Docker Desktop for Windows).
+
+* 2024-01-24
+
+	- Bump default version of docker-compose installed via script to v2.24.2. Note that the version currently installed/upgraded by `apt` is v2.24.1.
+
+* 2024-01-15
+
+	- Remove `-4` flag from SSH command prior to 01 script. Using this stalls Ubuntu on Proxmox-VE which, for some reason, changes its IPv4 address during the `apt upgrade`. The `-4` flag is really only needed for the 02 script to avoid the inverse problem when IPv6 is stopped.
+
+* 2024-01-13
+
+	- Bump default version of docker-compose installed via script to v2.24.0.
+
 * 2023-12-29
 
 	- Add avahi daemon to list of PiBuilder dependencies in 01 script. This is needed for PiBuilder installs on Ubuntu.
