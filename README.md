@@ -1,10 +1,10 @@
 # PiBuilder
 
-## Užitečný nástroj pro kompletní přípravu Raspberry Pi 
+## Užitečný nástroj pro kompletní přípravu (nejenom) Raspberry Pi 
 
-PiBuilder je oním pověstným švýcarským nožíkem, který po čistém vypálení image Raspbianu provede
-automaticky kompletně zbylé kroky - instalaci IOTstack a všech jeho závislostí, instalaci IOTstackBackupu
-a také české verze IOTstackAliasů. Po skončení stačí spustit příkaz `iotstack_restore` s názvem souboru
+PiBuilder je oním pověstným švýcarským nožíkem, který po čistém vypálení image Raspbianu (nebo třeba Debianu ve vašem 
+Promox či ESXi serveru) provede automaticky kompletně zbylé kroky - instalaci IOTstack a všech jeho závislostí, instalaci 
+IOTstackBackupu a také české verze IOTstackAliasů. Po skončení stačí spustit příkaz `iotstack_restore` s názvem souboru
 ze zálohy (například na DropBoxu) a on si stáhne danou zálohu a vše sám rozbalí a připraví. Po zadání
 `UP` je vše spuštěno a běží stejně, jako v okamžik provádění zálohy. 
 
