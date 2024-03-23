@@ -1,5 +1,15 @@
 # PiBuilder Change Summary
 
+* 2024-03-17
+
+	- Bump default version of docker-compose installed via script to v2.25.0.
+	- Rewrite Raspberry Pi Imager section of main README to account for GUI changes.
+	- Update screen capture of releases page for 2024-03-12 and explain pros and cons of Desktop vs Lite image variants.
+
+* 2024-03-08
+
+	- Bump default version of docker-compose installed via script to v2.24.7.
+
 * 2024-02-19
 
 	- Bump default version of docker-compose installed via script to v2.24.6.
