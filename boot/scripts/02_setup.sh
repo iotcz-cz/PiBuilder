@@ -49,55 +49,83 @@ fi
 try_patch "/etc/dhcpcd.conf" "allowinterfaces eth*,wlan*"
 
 # install mechanism to auto-reset physical interfaces
-TARGET="/usr/bin/isc-dhcp-fix.sh"
-if SOURCE="$(supporting_file "$TARGET")" ; then
+# this is only needed in non-NetworkManager systems
+if [ $(systemctl is-active NetworkManager) = "inactive" ] ; then
 
-   echo "Installing $TARGET"
-   sudo cp "$SOURCE" "$TARGET"
-   sudo chown root:root "$TARGET"
-   sudo chmod 555 "$TARGET"
+   # it is only useful if rc.local is executable with non-zero length
+   # (implying that it has the expected content and is patchable)
+   HOOK="/etc/rc.local"
+   if [ -s "$HOOK" -a -x "$HOOK" ] ; then
 
-   try_patch "/etc/rc.local" "launch isc-dhcp-fix.sh at boot"
+      # the fix can only be implemented if the mechanism exists
+      # (it may have been removed in a customised PiBuilder)
+      TARGET="/usr/bin/isc-dhcp-fix.sh"
+      if SOURCE="$(supporting_file "$TARGET")" ; then
 
-   # in the non-host-specific case, that patch puts the following line
-   # into /etc/rc.local. It is commented-out but even if it is made
-   # active, it still evaluates to a no-op
-   INACTIVE="# /usr/bin/isc-dhcp-fix.sh"
+         echo "Installing $TARGET"
+         sudo cp "$SOURCE" "$TARGET"
+         sudo chown root:root "$TARGET"
+         sudo chmod 555 "$TARGET"
 
-   # we are going to build a replacement for that
-   ACTIVE="/usr/bin/isc-dhcp-fix.sh"
+         try_patch "$HOOK" "launch isc-dhcp-fix.sh at boot"
 
-   # iterate the candidate interfaces
-   for I in eth0 wlan0 ; do
-     if ip r | grep -q "dev $I proto" ; then
-        ACTIVE="$ACTIVE $I"
-     fi
-   done
+         # in the non-host-specific case, that patch puts the following
+         # line into /etc/rc.local. It is commented-out but even if it
+         # is made active, it still evaluates to a no-op
+         INACTIVE="# /usr/bin/isc-dhcp-fix.sh"
 
-   # try to replace the inactive form with the active form just built
-   # the edit will not occur if the INACTIVE form is not present (the
-   # most likely reason being that there was a host-specific patch).
-   # Also note no .bak file is produced. We want .bak to be the baseline
-   echo "If /etc/rc.local contains \"$INACTIVE\","
-   echo "it will be replaced with \"$ACTIVE\"."
-   sudo sed -i "s+$INACTIVE+$ACTIVE+" "/etc/rc.local"
+         # we are going to build a replacement for that
+         ACTIVE="/usr/bin/isc-dhcp-fix.sh"
 
+         # iterate the candidate interfaces
+         for I in eth0 wlan0 ; do
+            if ip r | grep -q "dev $I proto" ; then
+               ACTIVE="$ACTIVE $I"
+            fi
+         done
+
+         # try to replace the inactive form with the active form just
+         # built. The edit will not occur if the INACTIVE form is not
+         # present (the most likely reason being that there was a
+         # host-specific patch). Also note no .bak file is produced.
+         # We want .bak to be the baseline
+         echo "If $HOOK contains \"$INACTIVE\","
+         echo "it will be replaced with \"$ACTIVE\"."
+         sudo sed -i "s+$INACTIVE+$ACTIVE+" "$HOOK"
+
+      fi
+   fi
 fi
+
 
 # patch resolvconf.conf for local DNS and domain name
 try_patch "/etc/resolvconf.conf" "local name servers"
 
-# sysctl customisations (default disables IPv6)
-# Step 1: check for sysctl.conf and apply it if found. That edits
-#         /etc/sysctl.conf directly. This is the legacy approach.
-# Step 2: check for sysctl.d. If it is found, copy any files found
-#         inside it (no overwrite). This is the modern approach.
+
+# disable IPv6
+#
+# if NetworkManager is running then iterate the available interfaces
+# and change any cases where ipv6.method is "auto" to "disabled".
+# Then install the hook script
+if [ "$(systemctl is-active NetworkManager)" = "active" ] ; then
+   nmcli -g name connection | while read C ; do
+      M="$(nmcli -g ipv6.method connection show "$C")"
+      if [ "$M" = "auto" ] ; then
+         echo "Disabling IPv6 on $C (was $M)"
+         sudo nmcli connection modify "$C" ipv6.method "disabled"
+      fi
+   done
+   try_merge "/etc/NetworkManager/dispatcher.d" "adding sysctl hook script"
+fi
+
+# ideally, there are no patches for sysctl.conf (old style)
 try_patch "/etc/sysctl.conf" "patching sysctl.conf"
+# ideally, sysctl patches are handled from sysctl.d (new style)
 try_merge "/etc/sysctl.d" "customising sysctl.d"
 
+
 # grub customisations for hosts booting that way. Raspberry Pis don't
-# use grub so this is aimed at native/ProxMox Debian/Ubuntu. The
-# default provided with PiBuilder disables IPv6
+# use grub so this is aimed at native/ProxMox Debian/Ubuntu.
 if try_merge "/etc/default/grub.d" "customising grub.d" ; then
    if [ -x "/usr/sbin/update-grub" ] ; then
       echo "Updating GRUB"

@@ -809,8 +809,6 @@ Raspberry Pi OS does not use GRUB so you should ignore this section if you are u
 
 However, [GRUB](https://en.wikipedia.org/wiki/GNU_GRUB) (Grand Unified Bootloader) is common in other environments such as Debian native or Debian-in-Proxmox. In such cases, the contents of the PiBuilder configuration directory are merged with its equivalent on the system under construction, and then `update-grub` is invoked.
 
-The default content of `/etc/default/grub.d` supplied with PiBuilder disables IPv6 at boot time. It has the (intended) side-effect of preventing Network Manager from trying to manage IPv6 on any interface.
-
 <a name="etc_locales"></a>
 ### Locales
 
@@ -830,14 +828,22 @@ PiBuilder does not include a default directory. If you supply a general or host-
 <a name="etc_rc_local"></a>
 ### Network interface monitoring
 
+NetworkManager already takes care of keeping interfaces alive so the mechanism discussed in this section is not installed on systems where NetworkManager is running.
+
 See [Do your Raspberry Pi's Network Interfaces freeze?](https://gist.github.com/Paraphraser/305f7c70e798a844d25293d496916e77) for the background to this.
 
 * Patch file: `/etc/rc.local.patch`
 * Support script: `/usr/bin/isc-dhcp-fix.sh`
 
-If `/usr/bin/isc-dhcp-fix.sh` is found:
+Several preconditions need to be met before this mechanism will be installed:
 
-1. It is copied into place in `/usr/bin`; then
+1. NetworkManager must be inactive. 
+2. `/etc/rc.local` must be world-executable and have non-zero length. Debian and Ubuntu typically create an empty `rc.local` and without execute permission.
+3. `PiBuilder/boot/scripts/support/usr/bin/usr/bin/isc-dhcp-fix.sh` (or a host-specific version) must exist. It exists in the PiBuilder release but might be removed in customised versions.
+
+If the preconditions are met:
+
+1. `isc-dhcp-fix.sh` is copied into place in `/usr/bin`; then
 2. If `/etc/rc.local.patch` is found, it is used to patch `/etc/rc.local`. The default patch adds this line:
 
 	```
@@ -848,7 +854,9 @@ If `/usr/bin/isc-dhcp-fix.sh` is found:
 
 	```
 	/usr/bin/isc-dhcp-fix.sh eth0 wlan0 &
-	``` 
+	```
+	
+	If neither interface exists (which may well be the case on non-Raspberry Pi systems), the comment is left in place. 
 
 If you don't want any of this to happen, you can either remove `/usr/bin/isc-dhcp-fix.sh` (or replace it with a do-nothing script) or remove the line added by the patch in step 2. 
 
