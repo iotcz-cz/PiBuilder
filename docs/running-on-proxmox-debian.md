@@ -30,6 +30,8 @@ This tutorial walks you through the process of installing a Debian Bookworm gues
 		- [using IOTstackBackup](#phaseMigrateNatural)
 		- [using migration assistant](#phaseMigrateAssisted)
 
+- [automating your backups](#backuptip)
+
 - [Home Assistant (Supervised)](#hassio)
 
 <a name="assumptions"></a>
@@ -37,7 +39,7 @@ This tutorial walks you through the process of installing a Debian Bookworm gues
 
 1. Your hardware platform meets the Proxmox [minimum system requirements](https://www.proxmox.com/en/proxmox-virtual-environment/requirements).
 2. You have already [downloaded](https://www.proxmox.com/en/downloads) and installed Proxmox&nbsp;VE on your platform.
-3. You are able to use a web browser to connect to the Proxmox&nbsp;VE GUI on port 8086.
+3. You are able to use a web browser to connect to the Proxmox&nbsp;VE GUI on port 8006.
 4. You are able to login to the Proxmox&nbsp;VE GUI as root.
 
 <a name="definitions"></a>
@@ -61,7 +63,7 @@ Wherever you see any «guillemot» delimited placeholders in these instructions,
 This phase walks you through the process of downloading the installation media for Debian. You only need to complete the steps in this phase once. You will be able to construct any number of Debian Guest systems from the same installation media.
 
 1. Use your web browser to open [https://www.debian.org](https://www.debian.org).
-2. Click "Download". Your browser should begin downloading the latest Debian installer onto your support host (Linux, macOS, Windows). The file will have a name like `debian-12.1.0-amd64-netinst.iso`. This is generally referred to as *an `.iso`,* indicating that the file is in ISO9660 (Optical Disc) format. 
+2. Click "Download". Your browser should begin downloading the latest Debian installer onto your support host (Linux, macOS, Windows). The file will have a name like `debian-12.8.0-amd64-netinst.iso`. This is generally referred to as *an `.iso`,* indicating that the file is in ISO9660 (Optical Disc) format. 
 3. Use your web browser to:
 
 	* Connect to your Proxmox&nbsp;VE instance on port 8006
@@ -114,7 +116,7 @@ This phase walks you through the process of creating a Debian guest system. You 
 
 	* "OS" tab:
 
-		- "ISO image" popup menu: select `debian-12.1.0-amd64-netinst.iso`
+		- "ISO image" popup menu: select `debian-12.8.0-amd64-netinst.iso`
 
 		This is the image you downloaded in the [previous phase](#phaseGetISO).
 
@@ -206,15 +208,27 @@ This phase walks you through the process of creating a Debian guest system. You 
 	* If you need to set up a proxy, enter the details; otherwise leave the field blank.
 
 10. Respond to the "popularity contest" question as you think appropriate.
-11. At "Software selection":
+11. In the "Software selection" panel:
 
-	- enable "SSH server".
-	- choose desktop environments as you prefer.
+	- <a name="consoleonly"></a>"Debian desktop environment": You have two choices:
 
-	Notes:
+		1. You can leave this enabled and choose one or more of the windowing environments:
 
-	* Enabling SSH is **important.** Please do not skip this step.
-	* <a name="consoleonly"></a>"You can disable all desktop environments if you prefer to run from the console (the installation will be significantly faster).
+			* The installation takes longer and occupies more space on the virtual disk (~3GB);
+			* The resulting guest boots into a windowing environment but you have the ability to instruct the system to boot to the console;
+			* Network Manager is installed and configured; and
+			* The Avahi daemon (multicast DNS) is installed and configured, or
+
+		2. You can disable the desktop environment entirely:
+
+			* The installation is *significantly* faster and uses less space;
+			* The resulting guest boots to the console (there is no ability to switch to a Desktop environment)
+			* Network Manager is not installed; and
+			* The Avahi daemon (multicast DNS) is not installed.
+
+		If your goal is to construct a server-class system for running IOTstack then I recommend disabling the desktop environment. However, if you need a user-class system which also happens to run IOTstack as a service then leaving the desktop environment enabled may be more appropriate. Your system, your rules!
+
+	- enable "SSH server". This is **important.** Please do not skip this step.
 
 12. The installer will install your selected software.
 13. "Install the GRUB boot loader":
@@ -223,7 +237,7 @@ This phase walks you through the process of creating a Debian guest system. You 
 	- At "Device for boot loader installation", select `/dev/sda`.
 
 14. At "Installation complete", ignore the reminder to remove the installation media. Proxmox&nbsp;VE handles this automatically.
-15. Your system will reboot. There is no need to respond to any of the boot-time prompts. Eventually, you will see a screen containing the full username you set [earlier](#setFullUserName).
+15. Your system will reboot. There is no need to respond to any of the boot-time prompts. Eventually, you will see a login prompt. The type of prompt will depend on whether you [chose a desktop or console](#consoleonly) environment. Either way, you will be able to login using the credentials you set [earlier](#setFullUserName).
 
 <a name="phaseGuestConfig"></a>
 ## Phase 3 - guest configuration
@@ -231,43 +245,36 @@ This phase walks you through the process of creating a Debian guest system. You 
 <a name="phaseGuestPreconfig"></a>
 ### guest pre-configuration
 
-This step is only needed if you [elected to run from the console](#consoleonly). If you enabled one or more of the Desktop options, you can jump straight to [guest user configuration](#phaseGuestUserConfig).
+This pre-configuration step is only needed if you [elected to run from the console](#consoleonly). If you enabled one or more of the Desktop options, you can jump straight to [guest user configuration](#phaseGuestUserConfig).
 
-If you only enabled the console, you will need to do some preparatory steps. A limitation of the Proxmox&nbsp;VE console window for a guest is that copy and paste doesn't work so you will need to enter commands by hand:
+A limitation of the Proxmox&nbsp;VE console window for a guest is that copy and paste doesn't work so you will need to enter commands by hand:
 
 1. In the [Proxmox-VE GUI](#createVirtualMachine), select your guest <!--L-->&#x1F13B; and click the console <!--M-->&#x1F13C;.
 2. Login using the console window <!--N-->&#x1F13D;. Remember to use the `«guest_user»` [credentials](#setShortUserName) you set earlier. There is no `root` account!
 3. Get a privileged shell:
 
-	```
+	``` console
 	$ sudo -s
 	```
-	
-	You will be asked to re-enter your login password. The prompt will change to `#` to indicate that you are running as `root`.
-	
-3. This is an optional step. If the font size in the Proxmov-VE console is too small to read comfortably, you can exercise *some* control over that by running:
 
-	```
-	# dpkg-reconfigure console-setup
-	```
-	
-	Good choices are `UTF-8` (default), `Latin 1 & 5` (default), `TerminusBold`, then whatever character size you like.
-	
+	You will be asked to re-enter your login password. The prompt will change to `#` to indicate that you are running as `root`.
+
 4. Run the following commands: 
 
-	```
+	``` console
 	# apt update
-	# apt install -y avahi-daemon
-	# service avahi-daemon restart
-	# systemctl restart sshd
+	# apt install -y network-manager avahi-daemon
+	# systemctl restart ssh
 	```
 
-	This installs and starts the `avahi-daemon` which provides multicast Domain Name Services (mDNS). After this, the guest system will respond to the name `«guest_host».local`.
-	
-6.	Finish off by pressing <kbd>control</kbd>+<kbd>d</kbd> twice to exit the privileged shell and the console session.
+	The `avahi-daemon` provides multicast Domain Name Services (mDNS). After this, the guest system will respond to the name `«guest_host».local`.
+
+5.	Finish off by pressing <kbd>control</kbd>+<kbd>d</kbd> twice to exit the privileged shell and the console session.
 
 <a name="phaseGuestUserConfig"></a>
 ### guest user configuration
+
+Although these commands *could* be executed from the guest console or a Terminal session opened in the Desktop windowing environment, you would need to type each command by hand. A limitation of the NoVNC interface prevents you from using clipboard services to paste commands into the guest. That's error-prone and, for that reason, the remainder of these instructions assume you will be working via SSH.
 
 Open a Terminal window on your support host (eg your Mac/PC). From the Terminal window:
 
@@ -290,7 +297,7 @@ Open a Terminal window on your support host (eg your Mac/PC). From the Terminal 
 	Supply the `«guest_user_password»` when prompted.
 
 	Note:
-	
+
 	* You can't use SSH to login to the `«guest_host»` as root. You must connect using the `«guest_user»` username.
 
 3. Confirm that you can execute commands using `sudo`:
@@ -305,23 +312,81 @@ Open a Terminal window on your support host (eg your Mac/PC). From the Terminal 
 
 	* If you are not able to execute commands using `sudo`, it probably means that you set a password for the root user, even though the [instructions](#noRootPassword) advised against doing that. Your best course of action is to destroy this guest system and start again.
 
-4. Run the following commands, one at a time:
+4. This step is only needed if you [elected to run from the console](#consoleonly). Skip to the [next step](#phaseGuestConsole) if you enabled any of the Desktop options. Otherwise, run the following commands:
 
 	``` console
-	$ sudo apt update ; sudo apt install -y git
+	$ ip link show
+	$ nmcli conn show
+	```
+
+	The output from the first command will be something like this:
+
+	```
+	1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+	    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+	2: ens18: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DEFAULT group default qlen 1000
+	    link/ether bc:24:11:c7:58:1e brd ff:ff:ff:ff:ff:ff
+	    altname enp0s18
+	```
+
+	The output from the second command will be something like this:
+
+	```
+	NAME  UUID                                  TYPE      DEVICE 
+	lo    1a328f3f-8f60-4249-9355-c9181202b97b  loopback  lo     
+	```
+
+	Taken together, the output from `ip link` shows that Proxmox-VE has defined a (virtual) PHY (OSI Layer 1 physical interface) named `ens18`, while the output from `nmcli` shows that Network Manager is not in control of that interface. It is better to let Network Manager control your interfaces so this problem should be fixed.
+
+	Typically, a Proxmox-VE guest only has a single networking interface and `ens18` appears to be the default name, so the command you are most likely to need to run is:
+
+	``` console
+	$ sudo sed -i.bak -e '/ens18/ s/^/#/' /etc/network/interfaces
+	```
+
+	However, if the output from `ip link show` identifies:
+
+	* A **different** interface name then you should edit the command accordingly. For example, if the interface was named `ens20` then the command would be:
+
+		``` console
+		$ sudo sed -i.bak -e '/ens20/ s/^/#/' /etc/network/interfaces 
+		```
+
+	* **multiple** interfaces (other than `lo`) then you repeat the `-e «script»` syntax. For example, if two interfaces `ens18` and `ens19` were displayed, then the command would be: 
+
+		``` console
+		$ sudo sed -i.bak -e '/ens18/ s/^/#/' -e '/ens19/ s/^/#/' /etc/network/interfaces 
+		```
+
+	Once `sed` has edited `/etc/network/interfaces`, you need to make Network Manager aware of the change, like this:
+
+	``` console
+	$ sudo systemctl restart NetworkManager.service
+	```
+
+5. <a name="phaseGuestConsole"></a>This is an optional step. If the font size in the Proxmov-VE console is too small to read comfortably, you can exercise *some* control over that by running:
+
+	``` console
+	$ sudo dpkg-reconfigure console-setup
+	```
+
+	Good choices are `UTF-8` (default), `Latin 1 & 5` (default), `TerminusBold`, then whatever character size you like.
+
+6. Run the following commands, one at a time:
+
+	``` console
 	$ echo "$USER  ALL=(ALL) NOPASSWD:ALL" | sudo tee "/etc/sudoers.d/$USER" >/dev/null
 	$ sudo usermod -G adm -a $USER
-	$ exit
+	$ sudo reboot
 	```
 
 	Explanation:
 
-	1. The first line installs `git`.
-	2. The second line gives the current user the ability to execute `sudo` commands without needing a password.
-	3. The third line adds the current user to the `adm` group (administration).
-	4. The `exit` command is the same as typing <kbd>control</kbd>+<kbd>d</kbd>. Logging-out from the `«guest_user»` account is required before the privilege changes can take effect.
+	1. The first line gives the current user the ability to execute `sudo` commands without needing a password.
+	2. The second line adds the current user to the `adm` group (administration).
+	3. The reboot is needed for some of the earlier commands to take effect.
  
- 	After the next login, `«guest_user»` will have exactly the same privileges as the default `pi` user on a Raspberry Pi and, in particular, the ability to run `sudo` commands without a password prompt.
+ 	After the reboot, `«guest_user»` will have exactly the same privileges as the default `pi` user on a Raspberry Pi and, in particular, the ability to run `sudo` commands without a password prompt.
 
 <a name="phaseClonePiBuilder"></a>
 ## Phase 4 - clone PiBuilder
@@ -345,6 +410,7 @@ Open a Terminal window on your support host (eg your Mac/PC). From the Terminal 
 3. Clone PiBuilder:
 
 	``` console
+	$ sudo apt update ; sudo apt install -y git
 	$ git clone https://github.com/Paraphraser/PiBuilder.git ~/PiBuilder
 	```
 
@@ -375,6 +441,22 @@ Tip:
 	```
 
 	There is no need to pass the `«guest_host»` argument to this script. You already entered the name for this host at ["Please enter the host name for this system"](#setHostName).
+
+	Note:
+
+	* If you elected to install the [Debian desktop](#consoleonly) and one or more windowing environments then a side-effect of the 01 script is to boot the Proxmox-VE guest to the console. If you want to re-enable the Desktop login, run the following command:
+
+		``` console
+		$ sudo systemctl set-default graphical.target
+		```
+
+		If you subsequently decide to boot to the console, run:
+
+		``` console
+		$ sudo systemctl set-default multi-user.target
+		```
+
+		Both commands take effect on the next reboot.
 
 <a name="runScript02"></a>
 ### Script 02
@@ -511,7 +593,7 @@ In general, you will want to take a backup immediately before you do the migrati
 	``` console
 	$ ssh «user»@«host».local
 	```
-	
+
 	where `«host»` is the name of your old IOTstack device, and `«user»` is the username on your old IOTstack device.
 
 2. Run a backup:
@@ -520,7 +602,7 @@ In general, you will want to take a backup immediately before you do the migrati
 	$ iotstack_backup
 	```
 
-3. List your backups directory and use the timestamps embedded in the file names to identify the backup files that were just created. For example:
+3. <a name="noteRunTag"></a>List your backups directory and use the timestamps embedded in the file names to identify the backup files that were just created. For example:
 
 	```
 	2023-09-30_1138.iot-hub.backup-log.txt
@@ -534,7 +616,7 @@ In general, you will want to take a backup immediately before you do the migrati
 	2023-09-30_1138.iot-hub
 	```
 
-	<a name="noteRunTag"></a>Make a note of your `«runtag»` because you will need it later. Do not be concerned by the fact that the hostname portion is the name of your old system. It is exactly what you want!
+	Make a note of your `«runtag»` because you will need it later. Do not be concerned by the fact that the hostname portion is the name of your old system. It is exactly what you want!
 
 4. Logout from the old system by pressing <kbd>control</kbd>+<kbd>d</kbd>.
 5. Login to your newly-created guest system:
@@ -595,13 +677,59 @@ In general, you will want to take a backup immediately before you do the migrati
 <a name="phaseMigrateAssisted"></a>
 #### using migration assistant
 
-Follow the instructions at [IOTstackBackup migration assistant](https://github.com/Paraphraser/IOTstackBackup#migration-assistant).
+Follow the instructions at [IOTstackBackup migration assistant](https://github.com/Paraphraser/IOTstackBackup?tab=readme-ov-file#migration-assistant).
 
 Note:
 
 * You can also use the migration assistant even if you have IOTstackBackup installed and configured on your old machine. Follow the link to the instructions above, then just skip step 2.
 
+<a name="backuptip"></a>
+#### automating your backups
+
+PiBuilder installs [IOTstackBackup](#https://github.com/Paraphraser/IOTstackBackup) and all required dependencies but can't configure it for you. To configure IOTstackBackup you either need to:
+
+* start from scratch and follow the instructions to set up [the configuration file](https://github.com/Paraphraser/IOTstackBackup?tab=readme-ov-file#the-configuration-file); or
+* copy an existing configuration file from another host.
+
+Tip:
+
+* PiBuilder's [advanced README](https://github.com/Paraphraser/PiBuilder/blob/master/README-ADVANCED.md#overview) contains an example of how to provide your IOTstackBackup configuration files to PiBuilder so IOTstackBackup is ready to run once PiBuilder finishes.
+
+Once IOTstackBackup is configured, you should consider automating your backups using `cron`. You will find instructions [here](https://github.com/Paraphraser/IOTstackBackup?tab=readme-ov-file#using-cron-to-run-iotstack_backup).
+
 <a name="hassio"></a>
 ## Home Assistant (Supervised)
 
-If you wish to install Home Assistant on the same Proxmox&nbsp;VE instance, follow the instructions [here](https://community.home-assistant.io/t/installing-home-assistant-os-using-proxmox-8/201835#section-3-installing-home-assistant-os-4).
+If you wish to install Home Assistant on the same Proxmox&nbsp;VE instance, follow the instructions [here](https://community.home-assistant.io/t/installing-home-assistant-os-using-proxmox-8/201835#section-3-installing-home-assistant-os-4). At that link you will find a `bash -c` command which you should copy to the clipboard.
+
+> I am not going to provide the command here because it may change. You should always go to the source!
+
+You can run the command using any method that makes sense in your situation:
+
+1. If you have a keyboard+screen attached to your Proxmox-VE server, you can login and do it from there.
+
+2. You can use the Proxmox-VE web GUI:
+
+	```
+	Server view » Datacenter » host » shell
+	```
+
+3. You can connect to your Proxmox-VE server using SSH.
+
+Regardless of connection method, if you login as the "root" user then you can paste the `bash -c …` command directly from the clipboard.
+
+However, if you login as a non-root user, you should run the command like this:
+
+1. Obtain a shell as root:
+
+	```
+	$ sudo -s
+	```
+
+	The system prompt will change to `#` to indicate that you are now root.
+
+2. Paste the `bash -c …` from the clipboard.
+
+3. Exit the root shell by pressing <kbd>control</kbd>+<kbd>d</kbd>
+
+Whichever approach you choose, simply accept the defaults. The result is a running guest instance of Home Assistant.

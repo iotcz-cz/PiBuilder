@@ -1,5 +1,114 @@
 # PiBuilder Change Summary
 
+* 2024-12-27
+
+	- Minor edits to Proxmox documentation to update examples to a more-recent Debian image, and to clarify that the login screen depends on Desktop vs Console choices.
+	- Expand on HA installation.
+
+* 2024-12-19
+
+	- Bump default version of docker-compose installed via script to v2.32.1.
+
+* 2024-12-14
+
+	- Bump default version of docker-compose installed via script to v2.32.0. `apt` currently installs v2.31.0.
+
+* 2024-11-16
+
+	- Add `iputils` commands to 03 script (mainly `arping` and `tracepath`).
+
+	- Bump default version of docker-compose installed via script to v2.30.3.
+
+* 2024-11-06
+
+	- Bump default version of docker-compose installed via script to v2.30.2.
+
+* 2024-11-03
+
+	- Bump default version of docker-compose installed via script to v2.30.1 (skips v2.30.0).
+
+* 2024-09-30
+
+	- Use correct port 8006 (not 8086) for connecting to Proxmox-VE GUI. Thanks to `@trebornerg` on Discord for spotting and reporting this. 
+
+* 2024-09-20
+
+	- Bump default version of docker-compose installed via script to v2.29.6.
+
+	- And then again (same day) to v2.29.7.
+
+		Meanwhile, v2.29.6 has made it into the `apt` repositories so it doesn't include [PR12141](https://github.com/docker/compose/pull/12141) added in v2.29.7:
+		
+		```
+		revert commits link to mount API over bind changes
+		``` 
+
+* 2024-09-18
+
+	- Bump default version of docker-compose installed via script to v2.29.5 (2.29.3 and 2.29.4 seemed less stable).
+
+* 2024-08-23
+
+	- Bump default version of docker-compose installed via script to v2.29.2.
+	- Add instructions to [VNC](./docs/vnc.md) for adding Chromium browser.
+
+* 2024-08-12
+
+	- A change to the default version of `/etc/dphys-swapfile` supplied with recent versions of Raspberry Pi OS Bookworm created a conflict the relevant patching instructions. A new `try_edit()` function has been implemented via which a file of editing commands can be passed to `sed`. That is now being used to edit `/etc/dphys-swapfile` such that swap space is calculated as twice physical RAM, capped to 2GB. This is actually the default for `dphys-swapfile`. The edit merely undoes the Raspberry Pi Foundations changes.
+
+	- If PiBuilder senses the presence of an `/etc/dphys-swapfile.patch`, it displays a deprecation warning and forces `VM_SWAP=default` which amounts to just leaving things alone. This only affects Raspberry Pis running Raspberry Pi OS.
+
+* 2024-08-06
+
+	- Alter how Python "break system packages" functionality is implemented. Previously, all scripts tested for the presence of Bookworm and, from that, *inferred* that `--break-system-packages` should be passed to `pip3`. This was an interim strategy which was going to break on Debian "trixie" and was guaranteed to fail on Ubuntu which uses different names. With this change, all calls to `pip3` are implemented like this:
+
+		```
+		$ PIP_BREAK_SYSTEM_PACKAGES=1 pip3 uninstall -y docker-compose
+		```
+		
+		This should be platform, distribution and release agnostic. If Python on the platform cares about "break system packages" then it will respect the environment variable; otherwise the variable will be ignored.
+
+	- Adds `apt-util` to basic packages in 01 script (missing on Ubuntu server).
+
+	- Check for existence of `/etc/locale.gen` before attempting merge, plus improved warning text from `edit_locales.sh` helper script.
+
+* 2024-07-25
+
+	- Bump default version of docker-compose installed via script to v2.29.1. This is also the version you get with a routine `apt upgrade`.
+
+* 2024-06-26
+
+	- Bump default version of docker-compose installed via script to v2.28.1.
+
+* 2024-06-21
+
+	- Bump default version of docker-compose installed via script to v2.28.0. In the past few days, v2.27.2 and v2.27.3 have been released in rapid succession. PiBuilder is skipping straight to v2.28.0.
+
+* 2024-06-12
+
+	- Explain how to re-enable Network Manager in a no-Desktop environment.
+	- Add instructions for undoing automatic boot-to-console set by 01 script.
+
+* 2024-06-07
+
+	- try_patch() function changed so that it will not attempt to patch non-existent targets. Documentation updated accordingly.
+	- try_patch() function messages made more succinct.
+	- patch of `/etc/dhcpcd.conf` not attempted in the presence of Network Manager.
+	- add documentation to explain how to set static IP addresses in the presence of Network Manager.
+
+* 2024-05-29
+
+	- Bump default version of docker-compose installed via script to v2.27.1.
+	- Add `is_NetworkManager_running()` function (defined as `systemctl` stating "active" and `nmcli` being in the search path and `nmcli` stating "running".
+	- Add `edit_locales.sh` helper script to try to workaround the continual problems caused by locales being a bit of a moving target.
+	- 01 script sets boot behaviour to console for pure Debian, (mirroring Raspberry Pi).
+	- 02 script:
+
+		- adopts `is_NetworkManager_running()` function.
+		- adopts better practice of setting interface to `ignore` (rather than `disable`) when inactivating IPv6.
+		- provides support for running a `/etc/NetworkManager/custom_settings.sh` which, if present, should contain `nmcli` scripts (eg for setting static IP addresses).
+		- adopts the `edit_locales.sh` helper script for editing locales. The old patch mechanism is now deprecated.
+
 * 2024-04-25
 
 	- Bump default version of docker-compose installed via script to v2.27.0.

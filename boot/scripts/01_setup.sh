@@ -83,7 +83,7 @@ fi
 
 # ensure basics available on non-Raspbian systems
 echo "Satisfying PiBuilder dependencies"
-sudo apt install -y git rsync avahi-daemon
+sudo apt install -y git rsync avahi-daemon apt-utils
 
 # remove any junk so we don't get reminders
 sudo apt autoremove -y
@@ -98,7 +98,7 @@ if SOURCE="$(supporting_file "/etc/ssh/etc-ssh-backup.tar.gz")" ; then
    sudo chown root:root /etc/ssh
    sudo chmod 755 /etc/ssh
    sudo tar --same-owner -xzf "$SOURCE" -C /etc/ssh
-   sudo systemctl restart sshd ssh
+   sudo systemctl restart ssh
    WARN_TRUST_RESET="true"
 
 else
@@ -211,6 +211,9 @@ else
 
    # run the script epilog if it exists
    run_pibuilder_epilog
+
+   echo "Setting boot behaviour to console (no GUI)"
+   sudo systemctl --quiet set-default multi-user.target
 
 fi
 

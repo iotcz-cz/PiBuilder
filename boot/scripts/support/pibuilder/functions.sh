@@ -233,6 +233,20 @@ is_raspberry_pi() {
    return 1
 }
 
+# a function to determine whether NetworkManager is running.
+# Example:
+#   is_NetworkManager_running
+# Returns true is and only if:
+# 1. systemctl thinks the NetworkManager service is active
+# 2. the nmcli command is available in the search path
+# 3. the nmcli command thinks NetworkManager is running
+is_NetworkManager_running () {
+   if [ "$(systemctl is-active NetworkManager)" = "active" -a -n "$(which nmcli)" ] ; then
+      [ "$(nmcli -t -f RUNNING general)" = "running" ] && return 0
+   fi
+   return 1
+}
+
 # a function to find a file which can either be in /boot/firmware or
 # /boot. Only tested for config.txt and cmdline.txt.
 #
@@ -354,6 +368,17 @@ try_patch() {
 
    local PATCH
 
+   # does the target of the patch exist?
+   if [ ! -f "$1" ] ; then
+
+      # no! report
+      echo "[PATCH] can't be attempted - $1 does not exist"
+
+      # shortstop return
+      [ "$3" = "true" ] && return 0 || return 1
+
+   fi
+
    # does a patch file exist for the target in $1 ?
    if PATCH="$(supporting_file "$1.patch")" ; then
 
@@ -374,20 +399,15 @@ try_patch() {
          # no! report failure
          echo "[PATCH] FAILED to apply $PATCH to $1 - $2"
 
-         # ignore errors?
-         if [ "$3" = "true" ] ; then
-
-            # yes! return success
-            return 0
-
-         fi
+         # return success if errors should be ignored
+         [ "$3" = "true" ] && return 0
 
       fi
 
    else
 
       # no patch found
-      echo "[PATCH] no patch $PATCH found for $1 - $2"
+      echo "[PATCH] no patch found for $1"
 
    fi
 
@@ -459,6 +479,109 @@ try_merge() {
 
 }
 
+
+# a function to find a sed file for the supplied $1 argument and
+# attempt to apply it if one exists.
+#
+# Parameter $1: path to the file to be patched (eg /etc/dphys-swapfile)
+#               will look for either:
+#                  /boot/scripts/support/etc/dphys-swapfile.sed@host
+#                  /boot/scripts/support/etc/dphys-swapfile.sed
+# Parameter $2: a comment string describing the editing to be done
+#
+# Return code = 0 if the patch is found and can be applied, 1 otherwise.
+#
+# Outputs comments indicating whether the patch was found and applied,
+# found and not applied successfully, or not found.
+#
+# Can be called in two forms:
+# 1.  try_patch "/etc/rc.local" "launch isc-dhcp-fix.sh at boot"
+# 2.  if try_patch "/etc/rc.local" "launch isc-dhcp-fix.sh at boot" ; then
+#        --some conditional actions here--
+#     fi
+
+try_edit() {
+
+   local SED SEDBACK
+
+   # does the target of the patch exist?
+   if [ ! -f "$1" ] ; then
+
+      # no! report
+      echo "[EDIT] can't be attempted - $1 does not exist"
+
+      # shortstop return
+      return 1
+
+   fi
+
+   # does a patch file exist for the target in $1 ?
+   if SED="$(supporting_file "$1.sed")" ; then
+
+      # yes! the backup file (if it gets created) will be
+      SEDBACK="$1.pibuilder.bak"
+
+      # try to apply the edits
+      sudo sed -i.pibuilder.bak -f "$SED" "$1"
+
+      # did sed complete normally?
+      if [ $? -eq 0 ] ; then
+
+         # yes! has the backup file been created?
+         if [ -f "$SEDBACK" ] ; then
+
+            # yes! do the original and backup compare same?
+            if cmp -s "$1" "$SEDBACK" ; then
+
+               # yes! this implies the edits did nothing
+               echo "[EDIT] no changes made by applying $SED to $1 - $2"
+
+               # remove the backup file
+               sudo rm "$SEDBACK"
+
+            else
+
+               # no! this implies the edits made a change
+               echo "[EDIT] $SED applied to $1 - $2"
+
+               # the interim backup file should become permanent .bak
+               sudo mv "$SEDBACK" "$1.bak"
+
+               # shortstop return - success
+               return 0
+
+            fi
+
+         else
+
+            # no! the absense of a backup file means the edit failed
+            echo "[EDIT] FAILED to apply $SED to $1 - $2"
+
+         fi
+
+      else
+
+         # no! cleanup the backup file if it got created
+         sudo rm -f "$SEDBACK"
+
+         # explain
+         echo "[EDIT] sed REFUSED to edit $1 - $2"
+         echo "       ($SED may contain invalid commands)"
+
+      fi
+
+   else
+
+      # no patch found
+      echo "[EDIT] no edits found for $1"
+
+   fi
+
+   return 1
+
+}
+
+
 # a function to "source":
 # 1. the pibuilder-options script
 # 2. a prolog based on the script name. For example:
@@ -478,11 +601,7 @@ run_pibuilder_prolog() {
       . "$IMPORT"
    fi
 
-   # hack to overcome Python externally-managed-environment
-   if is_running_OS_release bookworm ; then
-      echo "Note: pip3 installs will bypass externally-managed environment check"
-      PIBUILDER_PYTHON_OPTIONS="--break-system-packages"
-   fi
+   echo "Note: pip3 installs will bypass externally-managed environment check"
 
    # run a prolog if it exists
    if IMPORT="$(supporting_file "/pibuilder/prologs/$SCRIPT")" ; then

@@ -24,6 +24,7 @@ This document explains how to customise PiBuilder to your needs.
 
 		- [Search function](#supportingFileFunction)
 		- [Patch function](#tryPatchFunction)
+		- [File edit function](#tryEditFunction)
 		- [Folder merge function](#tryMergeFunction)
 
 	- [Preparing your own patches](#patchPreparation)
@@ -49,6 +50,7 @@ This document explains how to customise PiBuilder to your needs.
 	- [Locales](#etc_locales)
 	- [Network interfaces](#etc_network)
 	- [Network interface monitoring](#etc_rc_local)
+	- [Network Manager customisation](#etc_networkmanager)
 	- [DNS resolver](#etc_resolvconf_conf)
 	- [Samba (SMB)](#etc_samba_smb_conf)
 	- [Secure Shell (SSH)](#etc_ssh)
@@ -426,7 +428,9 @@ For example:
 try_patch "/etc/resolv.conf" "this is an example"
 ```
 
-The patch algorithm appends `.patch` to the path supplied in the first argument and then invokes `supporting_file()`:
+The patch algorithm first checks whether the target (the file to be patched in the running system) actually exists. If it does not then, returns "success" if the third argument is `true`, otherwise returns "fail".
+
+If the target exists, the patch algorithm appends `.patch` to the path supplied in the first argument and then invokes `supporting_file()`:
 
 ``` bash
 supporting_file "/etc/resolv.conf.patch"
@@ -462,6 +466,50 @@ The `try_patch()` function has two common use patterns:
 	``` bash
 	if try_patch "/etc/locale.gen" "setting locales (ignore errors)" true ; then
 		sudo dpkg-reconfigure -f noninteractive locales
+	fi
+	```
+
+<a name="tryEditFunction"></a>
+#### File edit function
+
+The `try_edit()` function takes two arguments:
+
+1. A path beginning with a `/` which has the same definition as for [`supporting_file()`](#supportingFileFunction).
+2. A comment string summarising the purpose of the edit.
+
+For example:
+
+``` bash
+try_edit "/etc/dphys-swapfile" "revert swapfile to defaults"
+```
+
+The algorithm first checks whether the target (the file to be patched in the running system) actually exists. If it does not then the function returns "fail".
+
+If the target exists, the algorithm appends `.sed` to the path supplied in the first argument and then invokes `supporting_file()`:
+
+``` bash
+supporting_file "/etc/dphys-swapfile.sed"
+``` 
+
+Calling `supporting_file()` implies both *host-specific* and *general* candidates will be considered, with the *host-specific* form given precedence.
+
+If `supporting_file()` returns a candidate, the algorithm will assume it is a file containing valid `sed` editing instructions and will attempt to apply it to the target file. The function sets its result code to mean "success" if the editing instructions could be applied and the edited file compares-different from the original.
+
+Otherwise the function result code is set to mean "fail".
+
+The `try_edit()` function has two common use patterns:
+
+* unconditional invocation where there are no actions that depend on the success of the patch. For example:
+
+	``` bash
+	try_edit "/etc/dphys-swapfile" "revert swapfile to defaults"
+	``` 
+
+* conditional invocation where subsequent actions depend on the success of the patch. For example:
+
+	``` bash
+	if try_edit "/etc/dphys-swapfile" "revert swapfile to defaults" ; then
+		sudo dphys-swapfile setup
 	fi
 	```
 
@@ -716,6 +764,7 @@ This is a placeholder containing comments on how to set up cron jobs. PiBuilder 
 ### DHCP client daemon
 
 * Patch file: `/etc/dhcpcd.conf.patch`
+* Note: not attempted if Network Manager is running.
 
 The patch file supplied with PiBuilder adds the line:
 
@@ -733,13 +782,7 @@ static ip_address=192.168.132.55/24
 static routers=192.168.132.1
 ```
 
-Another possible use is explicitly forbidding interfaces that might otherwise match the wild-card "allow" above from participating in DHCP. One situation where you might need to do this is if you defined VLAN interfaces in `/etc/networks` and assigned static IP addresses there. Then you would want to exclude them from DHCP:
-
-```
-denyinterfaces eth0,eth0.1,eth0.2
-``` 
-
-See also [Configuring Static IP addresses on Raspbian](./docs/ip.md).
+> Note that this only works in systems where Network Manager is not running (ie Bullseye and earlier). See [Network Manager customisation](#etc_networkmanager) for an example of setting a static IP address.
 
 <a name="etc_docker_daemon"></a>
 ### Docker daemon
@@ -766,13 +809,14 @@ See also:
 ### System swap-file
 
 * Controlling variable: `VM_SWAP`
-* Patch file: `/etc/dphys-swapfile.patch`
+* Edits file: `/etc/dphys-swapfile.sed`
 
-The patch file supplied with PiBuilder sets the conditions such that the default for swap space is twice the amount of physical RAM, capped at a limit of 2GB. This will be 2GB for any Raspberry Pi with 1GB or more of real RAM. You can, however, change this arrangement to suit your needs, either by altering the supplied patch file or providing a host-specific override.
+The edits file supplied with PiBuilder sets the conditions such that the default for swap space is twice the amount of physical RAM, capped at a limit of 2GB. This will be 2GB for any Raspberry Pi with 1GB or more of real RAM. You can, however, change this arrangement to suit your needs, either by altering the supplied edits file (refer to the [try_edit()](#tryEditFunction) function) or by providing a host-specific override.
 
 If `VM_SWAP` is set to:
 
 - `disable`, no swapping occurs. This may be appropriate if your Raspberry Pi boots from SD and you want to avoid wear and tear on the card.
+
 - `automatic`:
 
 	- If the Pi is running from an SD card, this is the same as `disable`.
@@ -800,6 +844,10 @@ You can always check if swapping is enabled using the `swapon -s` command. Silen
 
 It is important to appreciate that VM swapping is not **bad**. Please don't disable swapping without giving it some thought. If you can afford to add an SSD, you'll get a better result with swapping enabled than if you stick with the SD and disable swapping.
 
+#### `/etc/dphys-swapfile` deprecated
+
+Previously, `/etc/dphys-swapfile` was edited via a patch file. The Raspberry Pi Foundation changed the contents of the default file such that *patching* (using the Unix `patch` command) became less reliable that *editing* (using the Unix `sed` command). If PiBuilder senses a patch file, it will display a deprecation notice and force `VM_SWAP=default` which means "no change from OS defaults".
+
 <a name="etc_defaults_grub"></a>
 ### GRUB
 
@@ -812,11 +860,41 @@ However, [GRUB](https://en.wikipedia.org/wiki/GNU_GRUB) (Grand Unified Bootloade
 <a name="etc_locales"></a>
 ### Locales
 
+* Configuration file: `/etc/locale.conf`
+
+* Example:
+
+	```
+	[enable]
+	en_AU ISO-8859-1
+	en_AU.UTF-8 UTF-8
+	en_US.UTF-8 UTF-8
+	```
+
+`locale.conf` has a simple syntax and the script that parses it has no sanity checking so you would be unwise to push it too far. Rules:
+
+1. Everything should be left-aligned.
+2. Lines starting with a hash are treated as comments.
+3. Blank lines are ignored.
+4. Two "directives" are supported (`[enable]` and `[disable]`). Everything else is considered to be a locale name.
+5. The script assumes "[enable]" mode on entry so a simple list of locales will be treated as if `[enable]` was present.
+6. No existing locale name in `/etc/locale.gen` contains a slash (`/`). The script relies on that when generating `sed` commands and will misbehave if this rule is broken.
+7. Given a locale to be activated, a `sed` command is generated to replace an inactive form with an active form but if and only if the locale is not already active.
+8. Given a locale to be deactivated, a `sed` command is generated to replace all active forms of the locale with inactive forms.
+9. Nothing happens if a locale does not actually exist in `/etc/locale.gen`. In other words, this mechanism can't be used to add new locales.
+
+Notes:
+
+* Do not deactivate "en_GB.UTF-8" if you are running on a Raspberry Pi. If you really want to remove that locale then you should use `raspi-config` **after** PiBuilder has finished. This is not an issue on native Debian installs.
+* If `LOCALE_LANG` is defined and contains a value which is active after `/etc/locale.gen` has been modified, then that will be made the active locale.
+
+#### Deprecated mechanism
+
 * Patch file: `/etc/locale.gen.patch`
 
-Any patch file should always retain "en_GB.UTF-8" because that's assumed for the Raspberry Pi. If you really want to remove that locale then you can do so after the build using `raspi-config`.
+If a patch file is present, PiBuilder will attempt to apply it but will issue a deprecation warning.
 
-Providing `LOCALE_LANG` is defined and contains a value which is active after `/etc/locale.gen` has been patched, then that will be made the active locale.
+Patch files are *reasonably* safe providing you are using a single platform (eg Raspberry Pi) **and** a single OS build (eg Bookworm) but the `locale.conf` mechanism should prove more reliable in the long term.
 
 <a name="etc_network"></a>
 ### Network interfaces
@@ -860,6 +938,76 @@ If the preconditions are met:
 
 If you don't want any of this to happen, you can either remove `/usr/bin/isc-dhcp-fix.sh` (or replace it with a do-nothing script) or remove the line added by the patch in step 2. 
 
+<a name="etc_networkmanager"></a>
+### Network Manager customisation
+
+Two hook points are provided for customising network manager:
+
+* `/etc/NetworkManager/dispatcher.d` - if this folder exists then its contents are merged with the corresponding folder in the system under construction. Example:
+
+	```
+	$ cat PiBuilder/boot/scripts/support/etc/NetworkManager/dispatcher.d/00-sysctl
+	```
+	
+	```
+	#!/bin/sh
+
+	# refer https://bbs.archlinux.org/viewtopic.php?id=282819
+	# (path to sysctl amended)
+	# this file should be owned root:root with mode 755
+
+	/usr/sbin/sysctl --system
+
+	exit 0
+	```
+	
+	If present, the effect of this file is to enforce options set in `/etc/sysctl.conf` and `/etc/sysctl.d` after each NetworkManager configuration change. Numerous web recipes mention these files so it is useful for the two ecosystems to coexist.
+
+* `/etc/NetworkManager/custom_settings.sh` - if this file exists, it is executed. Here is an example of how to set a static IP address. First, start with a *shebang*:
+
+	```
+	#!/usr/bin/env bash
+	```
+
+	Next:
+	
+	* if you know the connection name, define it:
+	
+		```
+		CONN="Wired connection 1"
+		```
+
+	* alternatively, if you only know the interface name, you can ask Network Manager to lookup the corresponding connection name:
+
+		```
+		PHY=eth0
+		CONN=$(nmcli -g GENERAL.CONNECTION dev show "$PHY" 2>/dev/null)
+		```
+		
+	Then, set the static IP address on the connection:
+	
+	```
+	STATIC="203.0.132.100/24"
+	GATEWAY="203.0.132.1"
+	if [ -n "$CONN" ] ; then
+	   sudo nmcli con mod "$CONN" \
+	      ipv4.addresses "$STATIC" \
+	      ipv4.gateway "$GATEWAY" \
+	      ipv4.method "manual"
+	   echo "Note: $PHY->$CONN set to static IP address $STATIC"
+	else
+	   echo "Warning: Unable to set static IP address $STATIC for $PHY"
+	fi
+	```
+	
+	Remember to give the script execute permission:
+	
+	```
+	$ chmod +x custom_settings.sh
+	```
+	
+	PiBuilder will apply the changes when the 02 script runs, and the changes will take effect on the reboot at the end of the 02 script.
+	
 <a name="etc_resolvconf_conf"></a>
 ### DNS resolver
 
