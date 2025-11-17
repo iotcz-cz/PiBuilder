@@ -93,10 +93,12 @@ echo "Installing additional packages"
 PACKAGES="$(mktemp -p /dev/shm/)"
 cat <<-BASE_PACKAGES >"$PACKAGES"
 acl
+avahi-utils
 curl
 bridge-utils
 dnsutils
 git
+inotify-tools
 iotop
 iperf
 iputils-ping
@@ -110,13 +112,13 @@ mc
 mosquitto-clients
 netcat-openbsd
 nmap
+pwgen
 python3-pip
 python3-dev
 python3-virtualenv
 python3-braceexpand
 rlwrap
 ruby
-software-properties-common
 sqlite3
 subversion
 sysstat
@@ -135,9 +137,12 @@ cat <<-CRYPTO_PACKAGES >"$PACKAGES"
 at
 cryptsetup
 dirmngr
+gnutls-bin
 gnupg-agent
 gnupg2
 openssl
+p11-kit
+p11-kit-modules
 pcscd
 python3-gnupg
 rng-tools

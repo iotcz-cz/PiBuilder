@@ -1,5 +1,68 @@
 # PiBuilder Change Summary
 
+* 2025-09-16
+
+	- adds `set_timezone_for_IOTstack.sh` helper script
+	- updates `running-on-proxmox-debian.md` to use helper script
+
+* 2025-09-15
+
+	- 04 script improvements for Trixie:
+
+		- check whether group exists before adding user to group.
+		- don't forcibly uninstall virtualenv from Trixie.
+		- check whether other historically problematic Python dependencies are actually installed before forcibly removing them. 
+
+* 2025-07-31
+
+	- ensure user is a member of the `dialout` group. This is the default on Raspberry Pi OS but not on Debian. It is (apparently) required for [deConz](https://sensorsiot.github.io/IOTstack/Containers/Deconz/#dialout-group).
+
+	- add `pwgen` to dependencies.
+
+* 2025-07-05
+
+	- remove `software-properties-common` from 03 script. The presence of this package [blocks](https://tracker.debian.org/pkg/software-properties) PiBuilder completion on Trixie.
+
+		This package adds the `apt-add-repository` command, which is a convenience for editing `apt` repository lists. 
+
+		PiBuilder doesn't actually use that command itself and it isn't mentioned in the IOTstack [install.sh](https://github.com/SensorsIot/IOTstack/blob/master/install.sh) script.
+		
+		The package was added to PiBuilder on [2022-09-16](https://github.com/Paraphraser/PiBuilder/commit/56673c221345470a6dfde8bf773cb1f9b316133d) with the remark that it anticipated Python 3.10. To the extent that IOTstack's menu uses Python, this does not seem to be an issue on Trixie.
+		
+		Better out than in.
+
+* 2025-06-30
+
+	- add new [tutorial](./add-privileged-user.md) on adding a privileged user and disabling the root account.
+	- update SQLite3 build script year and version variables to 2025 and 3500200, respectively. Minor internal re-organisation.
+
+* 2025-04-17
+
+	`install_docker-compose.sh` updated to default to, and accept an argument of `latest` in addition to specific version numbers like `v2.35.0`. Parses the JSON structures available from GitHub to determine the URL to download. Going forward, this will avoid the need to update this script every time a new version of docker-compose is released on GitHub.
+
+* 2025-04-16
+
+	- Bump default version of docker-compose installed via script to v2.35.0.
+
+* 2025-03-25
+
+	- Add useful packages `avahi-utils`, `gnutls-bin`, `p11-kit` and `p11-kit-modules` to 03 script.
+    
+	- Add inline tip to revert back to GUI on non-Raspbian to 01 script.
+
+* 2025-03-17
+
+	- Bump default version of docker-compose installed via script to v2.34.0.
+
+* 2025-03-03
+
+	- Bump default version of docker-compose installed via script to v2.33.1. This is also the current version for `apt upgrade`.
+
+* 2025-02-13
+
+	- Bump default version of docker-compose installed via script to v2.33.0
+	- add `inotify-tools` to 03 script dependencies list.
+
 * 2025-01-16
 
 	- Bump default version of docker-compose installed via script to v2.32.4.
@@ -55,7 +118,7 @@
 	- And then again (same day) to v2.29.7.
 
 		Meanwhile, v2.29.6 has made it into the `apt` repositories so it doesn't include [PR12141](https://github.com/docker/compose/pull/12141) added in v2.29.7:
-		
+
 		```
 		revert commits link to mount API over bind changes
 		``` 
@@ -82,7 +145,7 @@
 		```
 		$ PIP_BREAK_SYSTEM_PACKAGES=1 pip3 uninstall -y docker-compose
 		```
-		
+
 		This should be platform, distribution and release agnostic. If Python on the platform cares about "break system packages" then it will respect the environment variable; otherwise the variable will be ignored.
 
 	- Adds `apt-util` to basic packages in 01 script (missing on Ubuntu server).

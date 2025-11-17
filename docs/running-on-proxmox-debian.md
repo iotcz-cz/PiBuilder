@@ -63,7 +63,7 @@ Wherever you see any «guillemot» delimited placeholders in these instructions,
 This phase walks you through the process of downloading the installation media for Debian. You only need to complete the steps in this phase once. You will be able to construct any number of Debian Guest systems from the same installation media.
 
 1. Use your web browser to open [https://www.debian.org](https://www.debian.org).
-2. Click "Download". Your browser should begin downloading the latest Debian installer onto your support host (Linux, macOS, Windows). The file will have a name like `debian-12.8.0-amd64-netinst.iso`. This is generally referred to as *an `.iso`,* indicating that the file is in ISO9660 (Optical Disc) format. 
+2. Click "Download". Your browser should begin downloading the latest Debian installer onto your support host (Linux, macOS, Windows). The file will have a name like `debian-12.10.0-amd64-netinst.iso`. This is generally referred to as *an `.iso`,* indicating that the file is in ISO9660 (Optical Disc) format. 
 3. Use your web browser to:
 
 	* Connect to your Proxmox&nbsp;VE instance on port 8006
@@ -182,6 +182,9 @@ This phase walks you through the process of creating a Debian guest system. You 
 
 			1. If you accept this advice and do not assign a root password then the user you create in the next step will be given the ability to run `sudo`. This is similar to the privileges given to the default `pi` user on a Raspberry Pi. These instructions assume you accept this advice.
 			2. If you ignore this advice and decide to assign a root password anyway then you should stop following these instructions.
+			3. If you plough ahead regardless and subsequently decide that you should have accepted this advice, you can repair the damage using these instructions:
+
+				- [Adding a privileged user and disabling root](./add-privileged-user.md). 
 
 		* <a name="setFullUserName"></a>At "Full name for the new user", enter the full (long) username for `«guest_user»` (eg "Alan Turing").
 		* <a name="setShortUserName"></a>At "Username for your account", either accept the default or enter a (short) username for `«guest_user»` (eg "alan").
@@ -545,16 +548,10 @@ At this point, you have two choices:
 	$ ssh «guest_user»@«guest_host».local
 	```
 
-2. Change your working directory:
+2. Initialise your time-zone:
 
 	``` console
-	$ cd ~/IOTstack
-	```
-
-3. Initialise your time-zone:
-
-	``` console
-	$ echo "TZ=$(cat /etc/timezone)" >>.env
+	$ ./PiBuilder/boot/scripts/helpers/set_timezone_for_IOTstack.sh
 	```
 
 	This copies the timezone for your Debian guest into the file `~/IOTstack/.env`, which makes it available to any containers which define their `TZ` variables like this:
@@ -564,6 +561,24 @@ At this point, you have two choices:
 	```
 
 	That statement says "if `TZ` is defined in `.env` then use its value, otherwise default to `Etc/UTC`. It is an effective way of making sure all containers that support `TZ` run on the same timezone as your operating system and saves you the trouble of editing the same environment variable in each service definition.
+	
+	Note:
+	
+	* On Debian installations before Trixie, you *could* initialise `TZ` like this:
+
+		``` console
+		$ echo "TZ=$(cat /etc/timezone)" >>~/IOTstack/.env
+		```
+		
+		That command will not work on Trixie (or later) because `/etc/timezone` has been removed. That [change](https://git.gsi.de/chef/cookbooks/sys/-/issues/54) brings Debian into line with other Unices. The `set_timezone_for_IOTstack.sh` helper relies on `/etc/localtime` and should work on the majority of Unix systems (ie macOS and Linux) and should be independent of distro and release versions.
+		
+		> `set_timezone_for_IOTstack.sh` does not use either the `timedatectl` or `readlink` commands suggested at the above link, because those will not work on macOS. 
+
+3. Change your working directory:
+
+	``` console
+	$ cd ~/IOTstack
+	```
 
 4. Run the menu and choose your containers:
 
