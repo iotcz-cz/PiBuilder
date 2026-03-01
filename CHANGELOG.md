@@ -1,5 +1,28 @@
 # PiBuilder Change Summary
 
+* 2026-02-19
+
+	- renames `set_timezone_for_IOTstack.sh` to `set_timezone_for_project.sh`
+	- adds call to the above to 03 script after IOTstack is cloned.
+	- consequential change to documentation.
+	- improved method of simulating `./install.sh` completed.
+
+* 2026-02-03
+
+	- fix incorrect usage comments for `try_edit()` function.
+	- Trixie Virtual Memory adaptations.
+	- Exclude loopback from IPv6 disable (silences warning).
+
+* 2026-02-02
+
+	- Add rsync and whiptail as dependencies in 03 script (rsync already in 01 script so this is mainly for documentation purposes).
+	- Itemize `rsync` call in `try_merge()`.
+	- Simplify subsequent user experience by extending conditional NetworkManager processing in 02 script to rename interfaces so they have the same device and connection names.
+
+* 2026-01-24
+
+	- update SQLite3 build script year and version variables to 2026 and 3510200, respectively.
+
 * 2025-09-16
 
 	- adds `set_timezone_for_IOTstack.sh` helper script

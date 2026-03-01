@@ -129,18 +129,31 @@ try_patch "/etc/resolvconf.conf" "local name servers"
 # disable IPv6
 #
 # if NetworkManager is running then:
-# 1. iterate the available interfaces and change any cases where
+# *  iterate the available devices and force the connection name to
+#    be the same as the interface name (no "Wired Connection 1" or
+#    "preconfigured" for Ethernet and WiFi, respectively).
+# *  iterate the available connections and change any cases where
 #    ipv6.method is "auto" to "ignore".
-# 2. install the hook script which enforces sysctl settings in a
+# *  install the hook script which enforces sysctl settings in a
 #    NetworkManager environment.
-# 3. run a local customisations script (eg to set static IP addresses) 
+# *  run a local customisations script (eg to set static IP addresses) 
 #
 if is_NetworkManager_running ; then
+
+   NC="/etc/NetworkManager/system-connections"
+   nmcli -g device device | while read D ; do
+      C=$(nmcli -g GENERAL.CONNECTION device show "${D}")
+      [ -z "${D}" -o -z "${C}" -o "${D}" = "${C}" ] && continue
+      [ -f "${NC}/${C}.nmconnection" ] || continue
+      echo "Renaming connection ${C} to be same as device ${D}"
+      sudo nmcli connection modify "${C}" connection.id "${D}"
+      sudo mv "${NC}/${C}.nmconnection" "${NC}/${D}.nmconnection"
+   done
 
    # disable IPv6
    nmcli -g name connection | while read C ; do
       M="$(nmcli -g ipv6.method connection show "$C")"
-      if [ "$M" = "auto" ] ; then
+      if [ "$M" = "auto" -a "$C" != "lo" ] ; then
          echo "Disabling IPv6 on $C (was $M)"
          sudo nmcli connection modify "$C" ipv6.method "ignore"
       fi
@@ -183,102 +196,126 @@ try_patch "/etc/systemd/journald.conf" "less verbose journalctl"
 # merge network directory if one exists
 try_merge "/etc/network" "customising network interfaces"
 
-# handle change of controlling variable name from "DISABLE_VM_SWAP" to "VM_SWAP":
-#
-#  if VM_SWAP present, the value (default|disable|automatic) prevails.
-#  if VM_SWAP omitted:
-#     if DISABLE_VM_SWAP is true, VM_SWAP=disable
-#     if DISABLE_VM_SWAP omitted or false, VM_SWAP=default
-#
-[ -z "$VM_SWAP" ] && [ "$DISABLE_VM_SWAP" = "true" ] && VM_SWAP=disable
-is_raspberry_pi && VM_SWAP="${VM_SWAP:-automatic}" || VM_SWAP="default"
+# handle change of Raspberry Pi VM technology from dphys-swapfile to
+# rpi-swap. That maintains backwards compatibility for pre-Trixie RPi
+# systems. Going forward, the Raspberry Pi and Debian installs will
+# be treated the same by PiBuilder: all VM-related options will be
+# ignored and the installation defaults will be left in place.
+# Subsequent modifications to the VM system are then up to the user.
 
-# patching dphys-swapfile is deprecated
-if PATCH="$(supporting_file "/etc/dphys-swapfile.patch")" ; then
-   echo "[DEPRECATION] $PATCH is deprecated. Forcing VM_SWAP=default"
-   echo "              Please see PiBuilder documentation on try_edit()"
-   VM_SWAP="default"
+if [ is_raspberry_pi -a -x "/usr/sbin/dphys-swapfile" ] ; then
+
+	# handle change of controlling variable name from "DISABLE_VM_SWAP"
+	# to "VM_SWAP":
+	#  if VM_SWAP present, the value (default|disable|automatic) prevails.
+	#  if VM_SWAP omitted:
+	#     if DISABLE_VM_SWAP is true, VM_SWAP=disable
+	#     if DISABLE_VM_SWAP omitted or false, VM_SWAP=default
+	[ -z "$VM_SWAP" ] \
+	&& [ "$DISABLE_VM_SWAP" = "true" ] \
+	&& VM_SWAP=disable
+
+	# patching dphys-swapfile is deprecated
+	if PATCH="$(supporting_file "/etc/dphys-swapfile.patch")" ; then
+		echo "[DEPRECATION] $PATCH is deprecated. Forcing VM_SWAP=default"
+		echo "              Please see PiBuilder documentation on try_edit()"
+		VM_SWAP="default"
+	fi
+
+	# apply the documented default if nothing else has been set
+	VM_SWAP="${VM_SWAP:-automatic}"
+
+	# now, how should VM be handled?
+	case "$VM_SWAP" in
+
+		"disable" )
+
+			# is swap turned on?
+			if [ -n "$(/usr/sbin/swapon -s)" ] ; then
+
+				# yes! just disable it without changing the config
+				echo "Disabling virtual memory swapping"
+				sudo dphys-swapfile swapoff
+				sudo systemctl disable dphys-swapfile.service
+
+			fi
+
+		;;
+
+		"automatic" )
+
+			# is this Pi running from SD?
+			if [ -e "/sys/class/block/mmcblk0" ] ; then
+
+				# yes, is SD! is swap turned on?
+				if [ -n "$(/usr/sbin/swapon -s)" ] ; then
+
+					# yes! just disable it without changing the config
+					echo "Running from SD card - disabling virtual memory swapping"
+					sudo dphys-swapfile swapoff
+					sudo systemctl disable dphys-swapfile.service
+
+				fi
+
+			else
+
+				# no, not SD. turn off swap if it is enabled
+				[ -n "$(/usr/sbin/swapon -s)" ] &&  sudo dphys-swapfile swapoff
+
+				# try to patch the swap file setup
+				if try_edit "/etc/dphys-swapfile" "setting swap to max(2*physRAM,2048) GB" ; then
+
+					# patch success! deploy
+					sudo dphys-swapfile setup
+
+				fi
+
+				# re-enable swap (reboot occurrs soon)
+				sudo dphys-swapfile swapon
+
+			fi
+
+		;;
+
+		"custom" )
+
+			# try to patch the swap file setup
+			if try_edit "/etc/dphys-swapfile" "setting custom swap" ; then
+
+				# patch success! turn off swap if it is enabled
+				[ -n "$(/usr/sbin/swapon -s)" ] &&  sudo dphys-swapfile swapoff
+
+				# apply configuration
+				sudo dphys-swapfile setup
+
+				# re-enable swap (reboot occurrs soon)
+				sudo dphys-swapfile swapon
+
+			else
+
+				echo "Warning: VM_SWAP=$VM_SWAP but unable to patch /etc/dphys-swapfile"
+				echo "         Virtual memory system left at OS defaults"
+
+			fi
+
+		;;
+
+		*)
+			# catch-all implying "default" meaning "leave everything alone"
+			echo "Note: Virtual memory system left at OS defaults"
+
+		;;
+
+	esac
+
+else
+
+	echo "Note: either this system does not self-identify as a Raspberry Pi or it"
+	echo "      is a Raspberry Pi but the operating system is not using the"
+	echo "      dphys-swapfile utility to manage virtual memory. The PiBuilder"
+	echo "      option VM_SWAP=$VM_SWAP has been ignored."
+
 fi
-
-# now, how should VM be handled?
-case "$VM_SWAP" in
-
-   "disable" )
-
-      # is swap turned on?
-      if [ -n "$(/usr/sbin/swapon -s)" ] ; then
-
-         # yes! just disable it without changing the config
-         echo "Disabling virtual memory swapping"
-         sudo dphys-swapfile swapoff
-         sudo systemctl disable dphys-swapfile.service
-
-      fi
-      ;;
-
-   "automatic" )
-
-      # is this Pi running from SD?
-      if [ -e "/sys/class/block/mmcblk0" ] ; then
-
-         # yes, is SD! is swap turned on?
-         if [ -n "$(/usr/sbin/swapon -s)" ] ; then
-
-            # yes! just disable it without changing the config
-            echo "Running from SD card - disabling virtual memory swapping"
-            sudo dphys-swapfile swapoff
-            sudo systemctl disable dphys-swapfile.service
-
-         fi
-
-      else
-
-         # no, not SD. turn off swap if it is enabled
-         [ -n "$(/usr/sbin/swapon -s)" ] &&  sudo dphys-swapfile swapoff
-
-         # try to patch the swap file setup
-         if try_edit "/etc/dphys-swapfile" "setting swap to max(2*physRAM,2048) GB" ; then
-
-            # patch success! deploy
-            sudo dphys-swapfile setup
-
-         fi
-
-         # re-enable swap (reboot occurrs soon)
-         sudo dphys-swapfile swapon
-
-      fi
-      ;;
-
-   "custom" )
-
-      # try to patch the swap file setup
-      if try_edit "/etc/dphys-swapfile" "setting custom swap" ; then
-
-         # patch success! turn off swap if it is enabled
-         [ -n "$(/usr/sbin/swapon -s)" ] &&  sudo dphys-swapfile swapoff
-
-         # apply configuration
-         sudo dphys-swapfile setup
-
-         # re-enable swap (reboot occurrs soon)
-         sudo dphys-swapfile swapon
-
-      else
-
-         echo "Warning: VM_SWAP=$VM_SWAP but unable to patch /etc/dphys-swapfile"
-         echo "         Virtual memory system left at OS defaults"
-
-      fi
-
-      ;;
-
-   *)
-      # catch-all implying "default" meaning "leave everything alone"
-      echo "Virtual memory system left at OS defaults"
-      ;;
-
-esac
 
 # run the script epilog if it exists
 run_pibuilder_epilog

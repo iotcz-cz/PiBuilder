@@ -459,7 +459,7 @@ try_merge() {
 
          # merge without overwriting. The trailing "/" on MERGEDIR is
          # required. The filtering gets rid of macOS artifacts.
-         sudo rsync -rv --ignore-existing --exclude=".DS_Store" --exclude="._*" "$MERGEDIR"/ "$1"
+         sudo rsync -rvi --ignore-existing --exclude=".DS_Store" --exclude="._*" "$MERGEDIR"/ "$1"
 
          # return rsync's result code
          return $?
@@ -495,8 +495,8 @@ try_merge() {
 # found and not applied successfully, or not found.
 #
 # Can be called in two forms:
-# 1.  try_patch "/etc/rc.local" "launch isc-dhcp-fix.sh at boot"
-# 2.  if try_patch "/etc/rc.local" "launch isc-dhcp-fix.sh at boot" ; then
+# 1.  try_edit "/etc/dphys-swapfile" "setting custom swap"
+# 2.  if try_edit "/etc/dphys-swapfile" "setting custom swap" ; then
 #        --some conditional actions here--
 #     fi
 
