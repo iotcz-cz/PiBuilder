@@ -1,5 +1,32 @@
 # PiBuilder Change Summary
 
+* 2026-09-24
+
+	- Adds `dnsmasq-base` to dependencies. Can be useful in certain NetworkManager situations where its omission causes silent failures.
+
+* 2026-07-04
+
+	- Code in 02 script to harmonise network names removed. NetworkManager keeps fighting back. It was only ever a nice-to-have.
+
+* 2026-07-03
+
+	- Fix main README to account for changes to Raspberry Pi Imager.
+	- Code in 02 script to harmonise network names was not working as intended.
+	- Adds `argon2` package in 03 script.
+
+* 2026-04-16
+
+	- Use correct screen output for `git remote -v` when executed in treeless clone.
+	- Perform manual garbage-collection in `upgrade_treeless_clone.sh` (avoids confusing error messages and left-over logs).
+
+* 2026-04-10
+
+	- Fix command syntax error in `upgrade_treeless_clone.sh`.
+
+* 2026-04-07
+
+	- Alters `set_timezone_for_project.sh` to try using `timedatectl` to fetch the machine timezone, only falling back to the brute force method based on `/etc/localtime` if that fails.
+
 * 2026-04-06
 
 	- Reverts change made 2023-12-18 which defaulted to "treeless" clones of Git repositories. Per [github blog](https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/):

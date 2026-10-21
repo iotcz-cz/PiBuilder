@@ -126,12 +126,7 @@ fi
 try_patch "/etc/resolvconf.conf" "local name servers"
 
 
-# disable IPv6
-#
 # if NetworkManager is running then:
-# *  iterate the available devices and force the connection name to
-#    be the same as the interface name (no "Wired Connection 1" or
-#    "preconfigured" for Ethernet and WiFi, respectively).
 # *  iterate the available connections and change any cases where
 #    ipv6.method is "auto" to "ignore".
 # *  install the hook script which enforces sysctl settings in a
@@ -139,16 +134,6 @@ try_patch "/etc/resolvconf.conf" "local name servers"
 # *  run a local customisations script (eg to set static IP addresses) 
 #
 if is_NetworkManager_running ; then
-
-   NC="/etc/NetworkManager/system-connections"
-   nmcli -g device device | while read D ; do
-      C=$(nmcli -g GENERAL.CONNECTION device show "${D}")
-      [ -z "${D}" -o -z "${C}" -o "${D}" = "${C}" ] && continue
-      [ -f "${NC}/${C}.nmconnection" ] || continue
-      echo "Renaming connection ${C} to be same as device ${D}"
-      sudo nmcli connection modify "${C}" connection.id "${D}"
-      sudo mv "${NC}/${C}.nmconnection" "${NC}/${D}.nmconnection"
-   done
 
    # disable IPv6
    nmcli -g name connection | while read C ; do

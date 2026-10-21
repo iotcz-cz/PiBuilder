@@ -76,9 +76,11 @@ echo "Installing additional packages"
 PACKAGES="$(mktemp -p /dev/shm/)"
 cat <<-BASE_PACKAGES >"$PACKAGES"
 acl
+argon2
 avahi-utils
 curl
 bridge-utils
+dnsmasq-base
 dnsutils
 git
 inotify-tools
